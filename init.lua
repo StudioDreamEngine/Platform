@@ -235,9 +235,9 @@ end
 
 local OpenFuncs = {
 	-- Open a file on a users drive
-	OpenFileDialog = function(Title)
+	OpenFileDialog = function(Title, StartingDirectory)
 		print("Open file dialog")
-		local ReturnPathC = tinyfiledialog.tinyfd_openFileDialog(Title, nil, 2, nil, nil, 0) 
+		local ReturnPathC = tinyfiledialog.tinyfd_openFileDialog(Title, StartingDirectory, 2, nil, nil, 0) 
 
 		-- I love ffi so much, i love when it crashes on me with no error!
 		return (ReturnPathC ~= nil) and ffi.string(ReturnPathC)
@@ -254,8 +254,8 @@ local OpenFuncs = {
 }
 
 -- Open a file or folder on a users and ONLY call Callback IF the user doesnt cancel the prompt
-function Platform.OpenWithCallback(Title, Type, Callback)
-	local Path = OpenFuncs[Type](Title)
+function Platform.OpenWithCallback(Title, Type, Callback, StartingDirectory)
+	local Path = OpenFuncs[Type](Title, StartingDirectory)
 
 	if Path then
 		Path = Platform.ParsePath(Path)
