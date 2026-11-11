@@ -221,7 +221,7 @@ function Platform.OpenWithCallback(Title, Type, Callback, StartingDirectory)
 	local CallbackResult, Path
 
 	love.window.showFileDialog(Type, function(Files, _, Error)
-		Scheduler.NewTask(xpcall, function()
+		Scheduler.NewTask(xpcall, function() -- Sasha please fix your api 😇
 			if Error then
 				warn("File dialog error! "..Error)
 				return
