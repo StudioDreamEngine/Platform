@@ -23,27 +23,11 @@
 	IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
 	CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-	Version 1.3
+	Version 1.4
 ]]
 local ffi = require('ffi')
 
 local C = ffi.C
-local tinyfiledialog = ffi.load(package.searchpath("tinyfiledialogs64", package.cpath))
-
-ffi.cdef[[
-    char * tinyfd_openFileDialog(
-	char const * aTitle, /* NULL or "" */
-	char const * aDefaultPathAndOrFile, /* NULL or "" , ends with / to set only a directory */
-	int aNumOfFilterPatterns , /* 0 (2 in the following example) */
-	char const * const * aFilterPatterns, /* NULL or char const * lFilterPatterns[2]={"*.png","*.jpg"}; */
-	char const * aSingleFilterDescription, /* NULL or "image files" */
-	int aAllowMultipleSelects ) ;
-
-	char const * tinyfd_selectFolderDialog (
-	char const * const aTitle ,
-	char const * const aDefaultPath ) ;
-]]
-
 local IsStupid = (love.system.getOS() == 'Windows')
 
 local exec
@@ -205,12 +189,10 @@ end
 
 -- Start a new process (may freeze current process)
 function Platform.Execute(File, ...)
-	-- we REALLY shouldnt be doing this, but exec force closes the program
-	
 	if IsStupid then
 		exec(table.concat({...}, " "))
 	else
-		local ProcessID = C.fork()
+		local ProcessID = C.fork() -- ah yes fork the process with an entire fucking lua vm in it, totally cant go wrong!
 		print("Forked with Process ID "..ProcessID)
 
 		if ProcessID == 0 then
@@ -233,33 +215,36 @@ function Platform.Execute(File, ...)
 	end
 end
 
-local OpenFuncs = {
-	-- Open a file on a users drive
-	OpenFileDialog = function(Title, StartingDirectory)
-		print("Open file dialog")
-		local ReturnPathC = tinyfiledialog.tinyfd_openFileDialog(Title, StartingDirectory, 2, nil, nil, 0) 
-
-		-- I love ffi so much, i love when it crashes on me with no error!
-		return (ReturnPathC ~= nil) and ffi.string(ReturnPathC)
-	end,
-
-	-- Open a folder on a users drive
-	OpenFolderDialog = function(Title)
-		print("Open folder dialog")
-		local ReturnPathC = tinyfiledialog.tinyfd_selectFolderDialog(Title, nil)
-
-		-- I love ffi so much, i love when it crashes on me with no error!
-		return (ReturnPathC ~= nil) and ffi.string(ReturnPathC)
-	end
-}
-
 -- Open a file or folder on a users and ONLY call Callback IF the user doesnt cancel the prompt
 function Platform.OpenWithCallback(Title, Type, Callback, StartingDirectory)
-	local Path = OpenFuncs[Type](Title, StartingDirectory)
+	local GotCallback = Signal:New("GetCallback") ---@class Signal
+	local CallbackResult, Path
+
+	love.window.showFileDialog(Type, function(Files, _, Error)
+		Scheduler.NewTask(xpcall, function()
+			if Error then
+				warn("File dialog error! "..Error)
+				return
+			end
+
+			if #Files > 0 then
+				Path = Files[1]
+				CallbackResult = Callback(Files[1])
+			end
+		end, function(msg)
+			print(debug.traceback("showFileDialog failed: "..msg))
+		end)
+	end, {
+		title = Title,
+		defaultname = StartingDirectory
+	})
+
+	GotCallback:Wait()
+	GotCallback:Destroy()
 
 	if Path then
 		Path = Platform.ParsePath(Path)
-		return Callback(Path), Path
+		return CallbackResult, Path
 	else
 		return
 	end
