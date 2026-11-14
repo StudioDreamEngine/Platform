@@ -23,7 +23,7 @@
 	IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
 	CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-	Version 1.4
+	Version 1.4.1
 ]]
 local ffi = require('ffi')
 
@@ -231,6 +231,8 @@ function Platform.OpenWithCallback(Title, Type, Callback, StartingDirectory)
 				Path = Files[1]
 				CallbackResult = Callback(Files[1])
 			end
+
+			GotCallback:Invoke()
 		end, function(msg)
 			print(debug.traceback("showFileDialog failed: "..msg))
 		end)
